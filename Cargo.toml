@@ -1,0 +1,17 @@
+[package]
+name = "krunner-nix"
+version = "0.1.0"
+edition = "2021"
+authors = ["Leah Amelia Chen <hi@pluie.me>"]
+description = "Adding programs available via Nix to KRunner."
+repository = "https://github.com/pluiedev/krunner-nix"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+anyhow = "1.0.75"
+async-trait = "0.1.73"
+krunner = { git = "https://github.com/pluiedev/krunner-rs.git", features = ["tokio"] }
+probly-search = "2.0.0-alpha-2"
+serde = { version = "1.0.188", features = ["derive"] }
+serde_json = "1.0.107"
+tokio = { version = "1.32.0", features = ["rt-multi-thread", "macros", "io-util", "process"] }
