@@ -4,21 +4,19 @@
 
 ## Usage
 
-Simply activate KRunner (<kbd>alt+f2</kbd> by default), type in any program you want to run, and this plugin will try to match programs in Nixpkgs, and sort them by how close they are to your input.
+Simply activate KRunner (<kbd>alt+f2</kbd> by default) and type in any program you want to run. This plugin would then list programs in Nixpkgs matching the entered query, and sort them by how close they are to the query.
 
 <p align="center">
   <img src="https://github.com/pluiedev/krunner-nix/assets/22406910/be0ffb8a-93c5-4867-b0ba-d9f7aa631162?raw=true" height="500" alt="krunner-nix in action"/>
 </p>
 
-By default and by clicking the Run button, a Konsole window would be created, showing any logs or build progress that `nix run` displays.
+By selecting a program (or by clicking the Run button), a Konsole window would be appear, showing any logs or build progress that `nix run` displays.
 
 Alternatively, by clicking the Terminal button, a shell with the chosen app installed would be opened instead.
 
 <p align="center">
   <img src="https://github.com/pluiedev/krunner-nix/assets/22406910/5de00f39-826b-4824-84e6-e150b305e96b?raw=true" height="300" alt="the Konsole window that krunner-nix opens when running an app"/>
 </p>
-
-
 
 It even works with the default Application Launcher!
 
