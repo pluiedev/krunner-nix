@@ -1,16 +1,22 @@
 {
+  description = "Adding programs available via Nix to KRunner.";
+
   inputs.nixpkgs.url = "nixpkgs";
 
   outputs = {nixpkgs, ...}: let
-    system = "x86_64-linux";
-    pkgs = nixpkgs.legacyPackages.${system};
+    eachSystem = nixpkgs.lib.genAttrs ["aarch64-linux" "x86_64-linux"];
+    pkgs = system: nixpkgs.legacyPackages.${system};
   in rec {
-    packages.${system}.default = pkgs.callPackage ./. {};
+    packages = eachSystem (system: {
+      default = (pkgs system).callPackage ./. {};
+    });
 
-    devShells.${system}.default = with pkgs;
-      mkShell {
-        inputsFrom = [packages.${system}.default];
-        LD_LIBRARY_PATH = lib.makeLibraryPath [dbus];
-      };
+    devShells = eachSystem (system: {
+      default = with pkgs system;
+        mkShell {
+          inputsFrom = [packages.${system}.default];
+          LD_LIBRARY_PATH = lib.makeLibraryPath [dbus];
+        };
+    });
   };
 }

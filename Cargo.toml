@@ -7,6 +7,10 @@ description = "Adding programs available via Nix to KRunner."
 repository = "https://github.com/pluiedev/krunner-nix"
 license = "MIT OR Apache-2.0"
 
+[profile.release]
+strip = true
+lto = true
+
 [dependencies]
 anyhow = "1.0.75"
 async-trait = "0.1.73"
