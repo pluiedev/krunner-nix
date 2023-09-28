@@ -11,9 +11,9 @@ license = "MIT OR Apache-2.0"
 service = "me.pluie.krunner_nix"
 path = "/krunner_nix"
 
-#[profile.release]
-#strip = true
-#lto = true
+[profile.release]
+strip = true
+lto = true
 
 [dependencies]
 anyhow = "1.0.75"
