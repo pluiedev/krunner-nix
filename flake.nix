@@ -21,5 +21,8 @@
           LD_LIBRARY_PATH = lib.makeLibraryPath [dbus];
         };
     });
+    overlays.default = final: prev: {
+      krunner-nix = final.callPackage ./. {};
+    };
   };
 }
