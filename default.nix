@@ -2,18 +2,22 @@
   lib,
   pkg-config,
   dbus,
-  fetchFromGitHub,
   rustPlatform,
   makeDesktopItem,
-  writeTextFile,
+  ...
 }: let
   cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
-  service = "me.pluie.krunner_nix";
-  path = "/krunner_nix";
+  inherit (cargoToml.package) name version description authors;
+  inherit (cargoToml.package.metadata.krunner) service path;
+
+  primaryAuthor =
+    if (authors != [])
+    then builtins.match "(.+) (:?<(.*)>)" (builtins.head authors)
+    else [];
 in
-  rustPlatform.buildRustPackage rec {
-    pname = cargoToml.package.name;
-    version = cargoToml.package.version;
+  rustPlatform.buildRustPackage {
+    inherit version;
+    pname = name;
 
     src = ./.;
 
@@ -25,24 +29,29 @@ in
     DBUS_PATH = path;
 
     desktopItem = makeDesktopItem {
-      name = "plasma-runner-${pname}";
+      name = "plasma-runner-${name}";
       desktopName = "Nix";
       type = "Service";
       icon = "nix-snowflake";
-      comment = cargoToml.package.description;
+      comment = description;
 
-      extraConfig = {
-        X-KDE-PluginInfo-Author = "Leah Amelia Chen";
-        X-KDE-PluginInfo-Email = "hi@pluie.me";
-        X-KDE-PluginInfo-Name = pname;
-        X-KDE-PluginInfo-Version = version;
-        X-KDE-PluginInfo-License = "MIT";
-        X-KDE-PluginInfo-EnabledByDefault = "true";
-        X-KDE-ServiceTypes = "Plasma/Runner";
-        X-Plasma-API = "DBus";
-        X-Plasma-DBusRunner-Service = service;
-        X-Plasma-DBusRunner-Path = path;
-      };
+      extraConfig =
+        {
+          X-KDE-PluginInfo-Name = name;
+          X-KDE-PluginInfo-Version = version;
+          X-KDE-PluginInfo-License = "MIT";
+          X-KDE-PluginInfo-EnabledByDefault = "true";
+          X-KDE-ServiceTypes = "Plasma/Runner";
+          X-Plasma-API = "DBus";
+          X-Plasma-DBusRunner-Service = service;
+          X-Plasma-DBusRunner-Path = path;
+        }
+        // lib.optionalAttrs (builtins.length primaryAuthor >= 1) {
+          X-KDE-PluginInfo-Author = builtins.head primaryAuthor;
+        }
+        // lib.optionalAttrs (builtins.length primaryAuthor >= 3) {
+          X-KDE-PluginInfo-Email = lib.last primaryAuthor;
+        };
     };
 
     postInstall = ''
@@ -50,19 +59,14 @@ in
       cp $desktopItem/share/applications/* $out/share/krunner/dbusplugins
 
       mkdir -p $out/share/dbus-1/services
-      cat<<END > $out/share/dbus-1/services/${service}.service
+      cat<<EOF > $out/share/dbus-1/services/plasma-runner-${name}.service
       [D-BUS Service]
       Name=${service}
-      Exec=$out/bin/${pname}
-      END
+      Exec=$out/bin/${name}
+      EOF
     '';
 
-    cargoLock = {
-      lockFile = ./Cargo.lock;
-      outputHashes = {
-        "krunner-0.1.0" = "sha256-HHktpkEzg5zrdBffagTFJ4uVAegR8/PCxzTyERS6G64=";
-      };
-    };
+    cargoLock.lockFile = ./Cargo.lock;
 
     meta = with lib; {
       description = "Adding programs available via Nix to KRunner.";

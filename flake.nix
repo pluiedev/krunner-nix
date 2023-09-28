@@ -4,17 +4,20 @@
   inputs.nixpkgs.url = "nixpkgs";
 
   outputs = {nixpkgs, ...}: let
-    eachSystem = nixpkgs.lib.genAttrs ["aarch64-linux" "x86_64-linux"];
-    pkgs = system: nixpkgs.legacyPackages.${system};
+    systems = ["x86_64-linux" "aarch64-linux"];
+    forAllSystems = f: nixpkgs.lib.genAttrs systems (sys: f nixpkgs.legacyPackages.${sys});
   in rec {
-    packages = eachSystem (system: {
-      default = (pkgs system).callPackage ./. {};
+    packages = forAllSystems (pkgs: {
+      default = pkgs.callPackage ./. {};
     });
-
-    devShells = eachSystem (system: {
-      default = with pkgs system;
+    devShells = forAllSystems (pkgs: {
+      default = let
+        inherit (packages.${pkgs.system}) default;
+        inherit (pkgs) lib mkShell dbus;
+      in
         mkShell {
-          inputsFrom = [packages.${system}.default];
+          inherit (default) DBUS_SERVICE DBUS_PATH;
+          inputsFrom = [default];
           LD_LIBRARY_PATH = lib.makeLibraryPath [dbus];
         };
     });

@@ -7,14 +7,18 @@ description = "Adding programs available via Nix to KRunner."
 repository = "https://github.com/pluiedev/krunner-nix"
 license = "MIT OR Apache-2.0"
 
-[profile.release]
-strip = true
-lto = true
+[package.metadata.krunner]
+service = "me.pluie.krunner_nix"
+path = "/krunner_nix"
+
+#[profile.release]
+#strip = true
+#lto = true
 
 [dependencies]
 anyhow = "1.0.75"
 async-trait = "0.1.73"
-krunner = { git = "https://github.com/pluiedev/krunner-rs.git", features = ["tokio"] }
+krunner = { version = "0.1.1", features = ["tokio", "derive"] }
 probly-search = "2.0.0-alpha-2"
 serde = { version = "1.0.188", features = ["derive"] }
 serde_json = "1.0.107"

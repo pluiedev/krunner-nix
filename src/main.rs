@@ -1,52 +1,25 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fmt::Write;
 
-use anyhow::{Context as _, Result};
+use anyhow::{Context, Result};
 use async_trait::async_trait;
-use krunner::{ActionInfo, Context, Match, MatchType, MethodErr};
+use krunner::{AsyncRunnerExt, Match, MatchType};
 use probly_search::score::zero_to_one;
 use probly_search::{Index, QueryResult};
 use serde::Deserialize;
 use tokio::process::Command;
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, krunner::Action)]
 enum Action {
+	#[action(id = "run", title = "Run Nix program", icon = "system-run-symbolic")]
 	Run,
+	#[action(
+		id = "shell",
+		title = "Spawn a new shell with Nix program",
+		icon = "new-command-alarm"
+	)]
 	Shell,
-}
-impl krunner::Action for Action {
-	fn all() -> Vec<Self> {
-		vec![Self::Run, Self::Shell]
-	}
-
-	fn from_id(s: &str) -> Option<Self> {
-		match s {
-			"run" => Some(Self::Run),
-			"shell" => Some(Self::Shell),
-			_ => None,
-		}
-	}
-
-	fn to_id(&self) -> String {
-		match self {
-			Self::Run => "run",
-			Self::Shell => "shell",
-		}
-		.to_owned()
-	}
-
-	fn info(&self) -> ActionInfo {
-		match self {
-			Self::Run => ActionInfo {
-				text: "Run Nix program".to_owned(),
-				icon_source: "system-run-symbolic".to_owned(),
-			},
-			Self::Shell => ActionInfo {
-				text: "Spawn a new shell with Nix program".to_owned(),
-				icon_source: "new-command-alarm".to_owned(),
-			},
-		}
-	}
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize)]
@@ -120,40 +93,36 @@ impl Runner {
 			..
 		} = &self.programs[key];
 
-		let mut text = format!("Nix: {id}");
+		let mut title = format!("Nix: {id}");
 		if !version.is_empty() {
-			text.push_str(" (");
-			text.push_str(version);
-			text.push(')');
+			write!(title, " ({version})").unwrap();
 		}
 
-		let ty = if query.trim().eq_ignore_ascii_case(id) {
-			MatchType::ExactMatch
-		} else {
-			MatchType::PossibleMatch
-		};
+		Match {
+			id: id.to_string(),
+			title,
+			subtitle: description.clone().into(),
+			icon: "nix-snowflake".to_owned().into(),
 
-		Match::new(id.clone())
-			.text(text)
-			.subtext(description.clone())
-			.icon("nix-snowflake".to_owned())
-			.ty(ty)
-			.action(Action::Run)
-			.action(Action::Shell)
-			.relevance(score)
+			ty: if query.trim().eq_ignore_ascii_case(id) {
+				MatchType::ExactMatch
+			} else {
+				MatchType::PossibleMatch
+			},
+
+			actions: vec![Action::Run, Action::Shell],
+			relevance: score,
+			..Match::default()
+		}
 	}
 }
 
 #[async_trait]
 impl krunner::AsyncRunner for Runner {
 	type Action = Action;
-	type Err = MethodErr;
+	type Err = String;
 
-	async fn matches(
-		&mut self,
-		_ctx: &mut Context,
-		query: String,
-	) -> Result<Vec<Match<Self::Action>>, MethodErr> {
+	async fn matches(&mut self, query: String) -> Result<Vec<Match<Self::Action>>, Self::Err> {
 		let matches: Vec<_> = self
 			.index
 			.query(&query, &mut zero_to_one::new(), tokenizer, &[])
@@ -166,38 +135,25 @@ impl krunner::AsyncRunner for Runner {
 
 	async fn run(
 		&mut self,
-		_ctx: &mut Context,
 		match_id: String,
 		action: Option<Self::Action>,
-	) -> Result<(), MethodErr> {
-		match action {
-			Some(Action::Shell) => {
-				Command::new("konsole")
-					.args([
-						"-e",
-						"nix",
-						"shell",
-						&format!("nixpkgs#{match_id}"),
-						"--extra-experimental-features",
-						"nix-command",
-					])
-					.spawn()
-					.unwrap();
-			}
-			None | Some(Action::Run) => {
-				Command::new("konsole")
-					.args([
-						"-e",
-						"nix",
-						"run",
-						&format!("nixpkgs#{match_id}"),
-						"--extra-experimental-features",
-						"nix-command",
-					])
-					.spawn()
-					.unwrap();
-			}
-		}
+	) -> Result<(), Self::Err> {
+		let cmd = match action {
+			Some(Action::Shell) => "shell",
+			None | Some(Action::Run) => "run",
+		};
+
+		Command::new("konsole")
+			.args([
+				"-e",
+				"nix",
+				cmd,
+				&format!("nixpkgs#{match_id}"),
+				"--extra-experimental-features",
+				"nix-command",
+			])
+			.spawn()
+			.unwrap();
 		Ok(())
 	}
 }
@@ -208,7 +164,9 @@ fn tokenizer(s: &str) -> Vec<Cow<str>> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-	let runner = Runner::new().await?;
-	krunner::run_async(runner, env!("DBUS_SERVICE"), env!("DBUS_PATH")).await?;
+	Runner::new()
+		.await?
+		.start(env!("DBUS_SERVICE"), env!("DBUS_PATH"))
+		.await?;
 	Ok(())
 }
