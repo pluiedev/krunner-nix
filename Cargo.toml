@@ -18,6 +18,7 @@ lto = true
 [dependencies]
 anyhow = "1.0.75"
 async-trait = "0.1.73"
+futures-util = "0.3.28"
 krunner = { version = "0.1.1", features = ["tokio", "derive"] }
 probly-search = "2.0.0-alpha-2"
 serde = { version = "1.0.188", features = ["derive"] }

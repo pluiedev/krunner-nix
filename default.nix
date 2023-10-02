@@ -6,16 +6,19 @@
   makeDesktopItem,
   ...
 }: let
-  cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
-  inherit (cargoToml.package) name version description authors;
-  inherit (cargoToml.package.metadata.krunner) service path;
+  inherit (builtins) fromTOML readFile head match length elemAt;
+
+  cargoToml = fromTOML (readFile ./Cargo.toml);
+  inherit (cargoToml) package;
+  inherit (package) name version description authors;
+  inherit (package.metadata.krunner) service path;
 
   primaryAuthor =
     if (authors != [])
-    then builtins.match "(.+) (:?<(.*)>)" (builtins.head authors)
+    then match "(.+) (:?<(.*)>)" (head authors)
     else [];
 in
-  rustPlatform.buildRustPackage {
+  rustPlatform.buildRustPackage rec {
     inherit version;
     pname = name;
 
@@ -39,18 +42,20 @@ in
         {
           X-KDE-PluginInfo-Name = name;
           X-KDE-PluginInfo-Version = version;
-          X-KDE-PluginInfo-License = "MIT";
           X-KDE-PluginInfo-EnabledByDefault = "true";
           X-KDE-ServiceTypes = "Plasma/Runner";
           X-Plasma-API = "DBus";
           X-Plasma-DBusRunner-Service = service;
           X-Plasma-DBusRunner-Path = path;
         }
-        // lib.optionalAttrs (builtins.length primaryAuthor >= 1) {
-          X-KDE-PluginInfo-Author = builtins.head primaryAuthor;
+        // lib.optionalAttrs (length meta.license >= 1) {
+          X-KDE-PluginInfo-License = (head meta.license).spdxId;
         }
-        // lib.optionalAttrs (builtins.length primaryAuthor >= 3) {
-          X-KDE-PluginInfo-Email = lib.last primaryAuthor;
+        // lib.optionalAttrs (length primaryAuthor >= 1) {
+          X-KDE-PluginInfo-Author = head primaryAuthor;
+        }
+        // lib.optionalAttrs (length primaryAuthor >= 3) {
+          X-KDE-PluginInfo-Email = elemAt primaryAuthor 2;
         };
     };
 
@@ -69,8 +74,9 @@ in
     cargoLock.lockFile = ./Cargo.lock;
 
     meta = with lib; {
-      description = "Adding programs available via Nix to KRunner.";
-      homepage = "https://github.com/pluiedev/krunner-nix";
+      inherit description;
+
+      homepage = package.homepage or package.repository or "";
       license = with licenses; [mit asl20];
     };
   }
